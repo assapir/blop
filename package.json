@@ -1,0 +1,25 @@
+{
+  "name": "blop",
+  "version": "0.1.0",
+  "description": "Smart AUR helper CLI",
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "bin": {
+    "blop": "src/bin.ts"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "fmt": "oxfmt --write src/ test/",
+    "lint": "oxlint src/",
+    "check": "tsgo --noEmit && pnpm lint"
+  },
+  "dependencies": {
+    "libalpm": "^0.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@typescript/native-preview": "latest",
+    "oxfmt": "^0.44.0",
+    "oxlint": "^1.59.0"
+  }
+}
