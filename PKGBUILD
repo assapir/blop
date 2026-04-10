@@ -20,6 +20,7 @@ package() {
   cd "$srcdir/blop-$pkgver"
   install -dm755 "$pkgdir/usr/lib/$pkgname"
   cp -r src node_modules package.json "$pkgdir/usr/lib/$pkgname/"
+  chmod +x "$pkgdir/usr/lib/$pkgname/src/bin.ts"
   install -dm755 "$pkgdir/usr/bin"
   ln -s "/usr/lib/$pkgname/src/bin.ts" "$pkgdir/usr/bin/$pkgname"
 }
