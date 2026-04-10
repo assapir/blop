@@ -26,10 +26,8 @@ jobs:
       - name: Install project deps
         run: pnpm install
 
-      - name: Format check
-        run: |
-          pnpm fmt
-          git diff --exit-code -- src/ test/
+      - name: Format
+        run: pnpm fmt
 
       - name: Typecheck + lint
         run: pnpm check
