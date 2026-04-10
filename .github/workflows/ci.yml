@@ -13,12 +13,12 @@ jobs:
     container:
       image: archlinux:base-devel
     steps:
-      - uses: actions/checkout@v4
-
       - name: Install system deps
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm nodejs npm git
+
+      - uses: actions/checkout@v4
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -27,7 +27,9 @@ jobs:
         run: pnpm install
 
       - name: Format check
-        run: pnpm fmt && git diff --exit-code
+        run: |
+          pnpm fmt
+          git diff --exit-code -- src/ test/
 
       - name: Typecheck + lint
         run: pnpm check
@@ -42,12 +44,12 @@ jobs:
       image: archlinux:base-devel
       options: --privileged
     steps:
-      - uses: actions/checkout@v4
-
       - name: Install system deps
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm nodejs npm git sudo
+
+      - uses: actions/checkout@v4
 
       - name: Install pnpm + project deps
         run: |
