@@ -8,13 +8,34 @@ BUILD_DIR="$(mktemp -d)"
 trap 'rm -rf "$BUILD_DIR"' EXIT
 
 echo ":: Preparing build directory..."
-cp "$SCRIPT_DIR/PKGBUILD" "$BUILD_DIR/"
 
-# Patch PKGBUILD to use local source instead of GitHub tarball
+# Write a minimal PKGBUILD that packages from local source
+cat > "$BUILD_DIR/PKGBUILD" <<EOF
+pkgname=naruto
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Smart AUR helper CLI for Arch Linux"
+arch=('x86_64' 'aarch64')
+license=('GPL-3.0-or-later')
+depends=('nodejs')
+makedepends=('npm')
+
+build() {
+  cd "$SCRIPT_DIR"
+  npm install --omit=dev
+}
+
+package() {
+  cd "$SCRIPT_DIR"
+  install -dm755 "\$pkgdir/usr/lib/\$pkgname"
+  cp -r src node_modules package.json "\$pkgdir/usr/lib/\$pkgname/"
+  chmod +x "\$pkgdir/usr/lib/\$pkgname/src/bin.ts"
+  install -dm755 "\$pkgdir/usr/bin"
+  ln -s "/usr/lib/\$pkgname/src/bin.ts" "\$pkgdir/usr/bin/\$pkgname"
+}
+EOF
+
 cd "$BUILD_DIR"
-sed -i "s|source=.*|source=()|" PKGBUILD
-sed -i "s|sha256sums=.*|sha256sums=()|" PKGBUILD
-sed -i "s|cd \"\$srcdir/blop-\$pkgver\"|cd \"$SCRIPT_DIR\"|g" PKGBUILD
 
 echo ":: Building package..."
 makepkg -sf --noconfirm
