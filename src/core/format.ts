@@ -36,8 +36,13 @@ export function formatPackageInfo(fields: [string, string][]): string {
     .join("\n");
 }
 
-async function prompt(message: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+type PromptOpts = { input?: NodeJS.ReadableStream; output?: NodeJS.WritableStream };
+
+export async function prompt(message: string, opts?: PromptOpts): Promise<string> {
+  const rl = createInterface({
+    input: opts?.input ?? process.stdin,
+    output: opts?.output ?? process.stdout,
+  });
   try {
     return await rl.question(styleText(["bold", "cyanBright"], message));
   } finally {
@@ -45,13 +50,17 @@ async function prompt(message: string): Promise<string> {
   }
 }
 
-export async function confirm(message: string): Promise<boolean> {
-  const answer = await prompt(`→ ${message} `);
+export async function confirm(message: string, opts?: PromptOpts): Promise<boolean> {
+  const answer = await prompt(`→ ${message} `, opts);
   return answer.trim().toLowerCase() === "y";
 }
 
-export async function pickNumber(message: string, max: number): Promise<number | null> {
-  const answer = await prompt(`${message} `);
+export async function pickNumber(
+  message: string,
+  max: number,
+  opts?: PromptOpts,
+): Promise<number | null> {
+  const answer = await prompt(`${message} `, opts);
   const trimmed = answer.trim();
   if (trimmed === "q" || trimmed === "") return null;
   const n = parseInt(trimmed, 10);

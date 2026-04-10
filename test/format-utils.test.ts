@@ -1,7 +1,23 @@
-import { describe, it, beforeEach } from "node:test";
+import { PassThrough } from "node:stream";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatSize, formatDate, joinDeps, fail, formatRepoResult } from "../src/core/format.ts";
+import {
+  formatSize,
+  formatDate,
+  joinDeps,
+  fail,
+  formatRepoResult,
+  confirm,
+  pickNumber,
+} from "../src/core/format.ts";
 import { makePkg } from "./fakes/fixtures.ts";
+
+function fakeInput(text: string) {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  input.end(text + "\n");
+  return { input, output };
+}
 
 describe("formatSize", () => {
   it("formats bytes", () => {
@@ -91,5 +107,74 @@ describe("formatRepoResult", () => {
     const noPkg = makePkg({ name: "foo", desc: undefined });
     const result = formatRepoResult(noPkg);
     assert.ok(!result.includes("\n"), "should not have second line");
+  });
+});
+
+describe("confirm", () => {
+  it("returns true for 'y'", async () => {
+    const result = await confirm("proceed?", fakeInput("y"));
+    assert.strictEqual(result, true);
+  });
+
+  it("returns true for 'Y'", async () => {
+    const result = await confirm("proceed?", fakeInput("Y"));
+    assert.strictEqual(result, true);
+  });
+
+  it("returns false for 'n'", async () => {
+    const result = await confirm("proceed?", fakeInput("n"));
+    assert.strictEqual(result, false);
+  });
+
+  it("returns false for empty input", async () => {
+    const result = await confirm("proceed?", fakeInput(""));
+    assert.strictEqual(result, false);
+  });
+
+  it("returns false for 'yes'", async () => {
+    const result = await confirm("proceed?", fakeInput("yes"));
+    assert.strictEqual(result, false);
+  });
+});
+
+describe("pickNumber", () => {
+  it("returns number for valid input", async () => {
+    const result = await pickNumber("pick:", 5, fakeInput("3"));
+    assert.strictEqual(result, 3);
+  });
+
+  it("returns 1 for min boundary", async () => {
+    const result = await pickNumber("pick:", 5, fakeInput("1"));
+    assert.strictEqual(result, 1);
+  });
+
+  it("returns max for max boundary", async () => {
+    const result = await pickNumber("pick:", 5, fakeInput("5"));
+    assert.strictEqual(result, 5);
+  });
+
+  it("returns null for 'q'", async () => {
+    const result = await pickNumber("pick:", 5, fakeInput("q"));
+    assert.strictEqual(result, null);
+  });
+
+  it("returns null for empty input", async () => {
+    const result = await pickNumber("pick:", 5, fakeInput(""));
+    assert.strictEqual(result, null);
+  });
+
+  it("returns null for out of range (0)", async () => {
+    const result = await pickNumber("pick:", 5, fakeInput("0"));
+    assert.strictEqual(result, null);
+  });
+
+  it("returns null for out of range (above max)", async () => {
+    const result = await pickNumber("pick:", 5, fakeInput("6"));
+    assert.strictEqual(result, null);
+  });
+
+  it("returns null for non-numeric input", async () => {
+    const result = await pickNumber("pick:", 5, fakeInput("abc"));
+    assert.strictEqual(result, null);
   });
 });
