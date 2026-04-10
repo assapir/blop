@@ -26,11 +26,11 @@ const OPERATIONS = [
 function buildUsage(): string {
   const pad = Math.max(...OPERATIONS.map(([flags]) => flags.length)) + 2;
   const ops = OPERATIONS.map(([flags, desc]) => `  ${flags.padEnd(pad)}${desc}`).join("\n");
-  return `Usage: blop [operation] [package(s)]
+  return `Usage: naruto [operation] [package(s)]
 
 Smart defaults:
-  blop                  System upgrade (repos + AUR)
-  blop <name>           Smart: install, remove, or search
+  naruto                  System upgrade (repos + AUR)
+  naruto <name>           Smart: install, remove, or search
 
 Operations:
 ${ops}`;

@@ -123,6 +123,19 @@ describe("resolve", () => {
     assert.ok(names.includes("bar"));
   });
 
+  it("uses satisfier package name, not parsed dep string", async () => {
+    const alpm = new FakeAlpmService();
+    const aur = new FakeAurService();
+    // The sync package is named "openssl" but the dep string has a version
+    alpm.addSync(makePkg({ name: "openssl" }));
+    aur.addPackage(makeAurPkg({ Name: "app", Depends: ["openssl>=3.0"] }));
+
+    const plan = await resolve(["app"], alpm, aur);
+    // Should be "openssl" (from PackageInfo.name), not "openssl" (from parseDepName)
+    // Both happen to match here, but the code path goes through repoSatisfier.name
+    assert.deepStrictEqual(plan.syncPackages, ["openssl"]);
+  });
+
   it("deduplicates shared deps", async () => {
     const alpm = new FakeAlpmService();
     const aur = new FakeAurService();

@@ -1,12 +1,12 @@
-# Plan: Build `blop` — A Smart AUR Helper CLI
+# Plan: Build `naruto` — A Smart AUR Helper CLI
 
 ## Context
 
 We've built and published `libalpm` — Node.js bindings for libalpm via napi-rs. Now we want to build a modern AUR helper CLI on top of it that seamlessly handles both official repo packages and AUR packages.
 
-**UX philosophy**: Smart defaults, minimal flags, cautious. Instead of memorizing pacman flags, the user just types `blop <name>` and the tool figures out the right thing to do.
+**UX philosophy**: Smart defaults, minimal flags, cautious. Instead of memorizing pacman flags, the user just types `naruto <name>` and the tool figures out the right thing to do.
 
-The project will live at `/home/assaf/code/blop/`.
+The project will live at `/home/assaf/code/naruto/`.
 
 ## CLI UX Design
 
@@ -14,8 +14,8 @@ The project will live at `/home/assaf/code/blop/`.
 
 | Command | What it does |
 |---------|-------------|
-| `blop` | System upgrade — repos + AUR (`-Syu`) |
-| `blop <name>` | Smart: if installed → offer remove; if available → offer install; else → search + pick |
+| `naruto` | System upgrade — repos + AUR (`-Syu`) |
+| `naruto <name>` | Smart: if installed → offer remove; if available → offer install; else → search + pick |
 
 ### Full pacman flag support
 
@@ -40,17 +40,17 @@ Any unrecognized flags are passed through to pacman directly.
 ### Interaction examples
 
 ```
-$ blop firefox
+$ naruto firefox
 firefox 138.0-1 is installed (explicit)
   Standalone web browser from mozilla.org
 → Remove? [y/N]
 
-$ blop yay
+$ naruto yay
 yay 12.5.7-1 found in AUR (+2547 votes)
   Yet another yogurt. Pacman wrapper and AUR helper written in go.
 → Install? [y/N]
 
-$ blop firef
+$ naruto firef
 Searching repos and AUR for "firef"...
  1  extra/firefox 138.0-1
     Standalone web browser from mozilla.org
@@ -60,7 +60,7 @@ Searching repos and AUR for "firef"...
     Nightly build of the Firefox browser
 Pick a package [1-3] or q to quit:
 
-$ blop
+$ naruto
 :: Upgrading official packages...
 (runs sudo pacman -Syu)
 :: Checking AUR packages...
@@ -71,7 +71,7 @@ $ blop
 ## Project Structure
 
 ```
-/home/assaf/code/blop/
+/home/assaf/code/naruto/
   package.json
   tsconfig.json
   LICENSE                      (GPL-3.0-or-later)
@@ -82,7 +82,7 @@ $ blop
       default.ts               (smart default: search/install/remove)
       install.ts               (-S: install packages, repo or AUR)
       search.ts                (-Ss: search repos + AUR)
-      upgrade.ts               (-Syu / bare `blop`: system upgrade + AUR)
+      upgrade.ts               (-Syu / bare `naruto`: system upgrade + AUR)
       info.ts                  (-Si/-Qi: package info)
       query.ts                 (-Q/-Qs: list/search installed)
       remove.ts                (-R/-Rs/-Rns: delegate to pacman)
@@ -113,7 +113,7 @@ $ blop
 
 7. **No cache / no SQLite** — A single user won't hit 4000 req/day. Every operation hits the AUR API fresh. No schema management, no TTL logic, no invalidation. Simple.
 
-8. **`blop` with no args = full upgrade** — The most common operation. Just type `blop` and it does `sudo pacman -Syu` + AUR upgrades. No need to remember flags.
+8. **`naruto` with no args = full upgrade** — The most common operation. Just type `naruto` and it does `sudo pacman -Syu` + AUR upgrades. No need to remember flags.
 
 9. **DX: oxfmt + oxlint** — `oxfmt` (v0.44.0) for formatting, `oxlint` (v1.59.0) for linting. Both Rust-based, instant, zero-config. Added as devDependencies. Scripts: `pnpm fmt`, `pnpm lint`, `pnpm check` (typecheck + lint).
 
@@ -139,8 +139,8 @@ All Node 25 built-ins, zero external dependencies besides `libalpm`:
 
 ### Phase 1: Project Skeleton + Core Utilities ✅
 
-1. Create `/home/assaf/code/blop/`, init project
-2. **`package.json`** — `"type": "module"`, `"bin": { "blop": "src/bin.ts" }`, dep on `libalpm@^0.1.2`, devDep on `@types/node`
+1. Create `/home/assaf/code/naruto/`, init project
+2. **`package.json`** — `"type": "module"`, `"bin": { "naruto": "src/bin.ts" }`, dep on `libalpm@^0.1.2`, devDep on `@types/node`
 3. **`tsconfig.json`** — `erasableSyntaxOnly`, `verbatimModuleSyntax`, `strict`, `module: "nodenext"`
 4. **`src/core/types.ts`** — AUR RPC response types, dependency resolution types
 5. **`src/core/format.ts`** — Built on `util.styleText()`. Exports: `formatSearchResult()` (bold blue repo name or bold magenta "aur", bold white pkg name, bold green version, yellow votes/popularity, dim description), `formatPackageInfo()` (labeled fields with colored keys), `confirm()` (bold cyan prompt), `pickNumber()` (bold cyan prompt). Section headers use `::` prefix in bold blue like pacman does. Errors in bold red. Installed markers in bright green.

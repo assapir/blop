@@ -1,11 +1,11 @@
 {
-  "name": "blop",
+  "name": "naruto",
   "version": "0.1.0",
   "description": "Smart AUR helper CLI",
   "type": "module",
   "license": "GPL-3.0-or-later",
   "bin": {
-    "blop": "src/bin.ts"
+    "naruto": "src/bin.ts"
   },
   "scripts": {
     "test": "node --test test/*.test.ts",

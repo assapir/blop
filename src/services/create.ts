@@ -1,4 +1,4 @@
-import { run, sudoPacman, gitClone, makepkg, findBuiltPackages } from "../core/exec.ts";
+import { run, sudoPacman, gitClone, gitPull, makepkg, findBuiltPackages } from "../core/exec.ts";
 import { confirm, pickNumber } from "../core/format.ts";
 import { PacmanConfService } from "./PacmanConfService.ts";
 import { AlpmService } from "./AlpmService.ts";
@@ -12,7 +12,7 @@ export async function createServices(): Promise<Services> {
   return {
     alpm,
     aur,
-    exec: { sudoPacman, gitClone, makepkg, findBuiltPackages },
+    exec: { sudoPacman, gitClone, gitPull, makepkg, findBuiltPackages },
     ui: { confirm, pickNumber },
   };
 }

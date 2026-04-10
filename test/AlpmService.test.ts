@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 import { AlpmService } from "../src/services/AlpmService.ts";
 import { PacmanConfService } from "../src/services/PacmanConfService.ts";
@@ -7,9 +7,12 @@ import { run } from "../src/core/exec.ts";
 describe("AlpmService", () => {
   let alpm: AlpmService;
 
-  it("creates successfully from real pacman-conf", async () => {
+  before(async () => {
     const pacmanConf = new PacmanConfService(run);
     alpm = await AlpmService.create(pacmanConf);
+  });
+
+  it("creates successfully", () => {
     assert.ok(alpm, "should create an AlpmService instance");
   });
 

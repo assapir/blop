@@ -49,8 +49,9 @@ export async function resolve(names: string[], alpm: Alpm, aur: Aur): Promise<In
     for (const dep of deps) {
       const depName = parseDepName(dep);
       if (alpm.findSatisfierLocal(dep)) continue;
-      if (alpm.findSatisfier(dep)) {
-        syncPackages.add(depName);
+      const repoSatisfier = alpm.findSatisfier(dep);
+      if (repoSatisfier) {
+        syncPackages.add(repoSatisfier.name);
         continue;
       }
       if (!aurInfoCache.has(depName) && !visiting.has(depName)) {

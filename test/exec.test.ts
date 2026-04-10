@@ -23,7 +23,7 @@ describe("run", () => {
 
 describe("findBuiltPackages", () => {
   it("finds .pkg.tar.zst files", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "blop-test-"));
+    const dir = await mkdtemp(join(tmpdir(), "naruto-test-"));
     try {
       await writeFile(join(dir, "foo-1.0-1-x86_64.pkg.tar.zst"), "");
       await writeFile(join(dir, "bar-2.0-1-x86_64.pkg.tar.xz"), "");
@@ -39,7 +39,7 @@ describe("findBuiltPackages", () => {
   });
 
   it("returns empty for no packages", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "blop-test-"));
+    const dir = await mkdtemp(join(tmpdir(), "naruto-test-"));
     try {
       await writeFile(join(dir, "PKGBUILD"), "");
       const pkgs = await findBuiltPackages(dir);

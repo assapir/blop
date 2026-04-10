@@ -29,6 +29,7 @@ export type Aur = {
 export type Exec = {
   sudoPacman(args: string[]): Promise<number>;
   gitClone(url: string, dest: string): Promise<{ stdout: string; stderr: string }>;
+  gitPull(cwd: string): Promise<{ stdout: string; stderr: string }>;
   makepkg(cwd: string, args: string[]): Promise<number>;
   findBuiltPackages(cwd: string): Promise<string[]>;
 };

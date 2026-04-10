@@ -1,11 +1,11 @@
-import { readFile, stat } from "node:fs/promises";
+import { readFile, stat, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { resolve } from "../core/resolver.ts";
 import { section, fail, info } from "../core/format.ts";
 import type { Alpm, Aur, Exec, Ui } from "../contracts/services.ts";
 
-const CACHE_DIR = join(homedir(), ".cache", "blop");
+const CACHE_DIR = join(homedir(), ".cache", "naruto");
 
 export async function install(
   packages: string[],
@@ -78,8 +78,11 @@ async function buildAndInstall(packageBase: string, exec: Exec, ui: Ui): Promise
 
   section(`Building ${packageBase}...`);
 
+  await mkdir(CACHE_DIR, { recursive: true });
+
   if (await dirExists(dest)) {
-    info(`Using existing clone at ${dest}`);
+    info(`Updating existing clone at ${dest}`);
+    await exec.gitPull(dest);
   } else {
     await exec.gitClone(url, dest);
   }
