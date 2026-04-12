@@ -4,9 +4,10 @@ import assert from "node:assert/strict";
 import { OutputService } from "../src/services/OutputService.ts";
 import { createUi } from "../src/services/UiService.ts";
 
-function fakeInput(text: string) {
+function fakeInput(text: string, isTTY = false) {
   const input = new PassThrough();
   const output = new PassThrough();
+  Object.defineProperty(input, "isTTY", { value: isTTY });
   input.end(text + "\n");
   return { input, output };
 }
@@ -22,19 +23,38 @@ describe("confirm", () => {
     assert.strictEqual(result, true);
   });
 
+  it("returns true for 'yes'", async () => {
+    const result = await createUi(new OutputService(false), fakeInput("yes")).confirm("proceed?");
+    assert.strictEqual(result, true);
+  });
+
   it("returns false for 'n'", async () => {
     const result = await createUi(new OutputService(false), fakeInput("n")).confirm("proceed?");
     assert.strictEqual(result, false);
   });
 
-  it("returns false for empty input", async () => {
+  it("returns true for empty input in interactive mode", async () => {
+    const result = await createUi(new OutputService(false), fakeInput("", true)).confirm(
+      "proceed?",
+    );
+    assert.strictEqual(result, true);
+  });
+
+  it("returns false for empty input in non-interactive mode", async () => {
     const result = await createUi(new OutputService(false), fakeInput("")).confirm("proceed?");
     assert.strictEqual(result, false);
   });
 
-  it("returns false for 'yes'", async () => {
-    const result = await createUi(new OutputService(false), fakeInput("yes")).confirm("proceed?");
+  it("returns false for unrecognized input", async () => {
+    const result = await createUi(new OutputService(false), fakeInput("maybe")).confirm("proceed?");
     assert.strictEqual(result, false);
+  });
+
+  it("shows the default-yes prompt hint", async () => {
+    const io = fakeInput("y");
+    await createUi(new OutputService(false), io).confirm("proceed?");
+    const output = String(io.output.read() ?? "");
+    assert.ok(output.includes("(Y/n)"), "should show the default-yes hint");
   });
 });
 

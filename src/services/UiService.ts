@@ -18,8 +18,12 @@ async function prompt(message: string, output: Output, opts?: PromptOpts): Promi
 export function createUi(output: Output, opts?: PromptOpts): Ui {
   return {
     async confirm(message: string): Promise<boolean> {
-      const answer = await prompt(`→ ${message} `, output, opts);
-      return answer.trim().toLowerCase() === "y";
+      const input = opts?.input ?? process.stdin;
+      const answer = await prompt(`→ ${message} (Y/n) `, output, opts);
+      const normalized = answer.trim().toLowerCase();
+      if (normalized === "y" || normalized === "yes") return true;
+      if (normalized === "") return "isTTY" in input && input.isTTY === true;
+      return false;
     },
 
     async pickNumber(message: string, max: number): Promise<number | null> {
