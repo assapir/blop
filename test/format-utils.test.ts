@@ -126,14 +126,21 @@ describe("confirm", () => {
     assert.strictEqual(result, false);
   });
 
-  it("returns false for empty input", async () => {
+  it("returns true for empty input", async () => {
     const result = await confirm("proceed?", fakeInput(""));
-    assert.strictEqual(result, false);
+    assert.strictEqual(result, true);
   });
 
   it("returns false for 'yes'", async () => {
     const result = await confirm("proceed?", fakeInput("yes"));
     assert.strictEqual(result, false);
+  });
+
+  it("shows the default-yes prompt hint", async () => {
+    const io = fakeInput("y");
+    await confirm("proceed?", io);
+    const output = String(io.output.read() ?? "");
+    assert.ok(output.includes("(Y/n)"), "should show the default-yes hint");
   });
 });
 
