@@ -15,7 +15,7 @@ jobs:
     container:
       image: archlinux:base-devel
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -61,7 +61,12 @@ jobs:
           git checkout -B master
           find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp -r "$pkg_dir"/. .
-          makepkg --printsrcinfo > .SRCINFO
+          build_user=aurbuilder
+          useradd -m "$build_user" 2>/dev/null || true
+          workdir=$(pwd)
+          chown -R "$build_user:$build_user" "$workdir"
+          runuser -u "$build_user" -- sh -lc "cd '$workdir' && makepkg --printsrcinfo > .SRCINFO"
+          chown -R root:root "$workdir"
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add --all
