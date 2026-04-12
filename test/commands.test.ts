@@ -1,5 +1,8 @@
-import { describe, it, beforeEach } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { search } from "../src/commands/search.ts";
 import { syncInfo, queryInfo } from "../src/commands/info.ts";
 import { query, querySearch } from "../src/commands/query.ts";
@@ -18,6 +21,7 @@ let aur: FakeAurService;
 let exec: FakeExecService;
 let output: FakeOutputService;
 let ui: FakeUiService;
+let cleanupDirs: string[] = [];
 
 function resetFakes() {
   alpm = new FakeAlpmService();
@@ -38,6 +42,23 @@ function queryDeps() {
 function installDeps() {
   return { alpm, aur, exec, ui, output };
 }
+
+function uniquePackageBase(label: string): string {
+  return `naruto-test-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function prepareCachedPkgbuild(packageBase: string): Promise<string> {
+  const dest = join(homedir(), ".cache", "naruto", packageBase);
+  await mkdir(dest, { recursive: true });
+  await writeFile(join(dest, "PKGBUILD"), `pkgbase=${packageBase}\npkgname=${packageBase}\n`);
+  cleanupDirs.push(dest);
+  return dest;
+}
+
+afterEach(async () => {
+  await Promise.all(cleanupDirs.map((dir) => rm(dir, { recursive: true, force: true })));
+  cleanupDirs = [];
+});
 
 // --- search ---
 
@@ -190,6 +211,150 @@ describe("install command", () => {
     assert.ok(pacmanCall, "should install repo package");
     assert.deepStrictEqual(pacmanCall.args, ["-S", "--needed", "firefox"]);
   });
+
+  it("fails when repo pacman install fails", async () => {
+    const original = process.exitCode;
+    try {
+      alpm.addSync(makePkg({ name: "firefox" }));
+      exec.sudoPacmanResults = [1];
+
+      await install(["firefox"], installDeps());
+
+      assert.ok(
+        output.calls.some((call) => call.fn === "fail" && call.args[0] === "pacman install failed"),
+      );
+      assert.strictEqual(process.exitCode, 1);
+    } finally {
+      process.exitCode = original;
+    }
+  });
+
+  it("fails when sync dependency install fails", async () => {
+    const original = process.exitCode;
+    try {
+      alpm.addSync(makePkg({ name: "firefox" }));
+      aur.addPackage(makeAurPkg({ Name: "yay", Depends: ["firefox"] }));
+      ui.setConfirmAnswer(true);
+      exec.sudoPacmanResults = [1];
+
+      await install(["yay"], installDeps());
+
+      assert.ok(
+        output.calls.some(
+          (call) => call.fn === "fail" && call.args[0] === "failed to install sync dependencies",
+        ),
+      );
+      assert.strictEqual(
+        exec.calls.some((call) => call.fn === "gitClone"),
+        false,
+      );
+      assert.strictEqual(process.exitCode, 1);
+    } finally {
+      process.exitCode = original;
+    }
+  });
+
+  it("fails when a fresh clone has no PKGBUILD", async () => {
+    const original = process.exitCode;
+    try {
+      const packageBase = uniquePackageBase("missing-pkgbuild");
+      aur.addPackage(makeAurPkg({ Name: "yay", PackageBase: packageBase }));
+      ui.setConfirmAnswer(true);
+
+      await install(["yay"], installDeps());
+
+      assert.ok(exec.calls.some((call) => call.fn === "gitClone"));
+      assert.ok(
+        output.calls.some((call) => call.fn === "fail" && call.args[0] === "PKGBUILD not found"),
+      );
+      assert.strictEqual(process.exitCode, 1);
+    } finally {
+      process.exitCode = original;
+    }
+  });
+
+  it("uses gitPull when the package base already exists in cache", async () => {
+    const packageBase = uniquePackageBase("git-pull");
+    await prepareCachedPkgbuild(packageBase);
+    aur.addPackage(makeAurPkg({ Name: "yay", PackageBase: packageBase }));
+    ui.setConfirmAnswer(true);
+    exec.builtPackages = ["/tmp/yay.pkg.tar.zst"];
+
+    await install(["yay"], installDeps());
+
+    assert.ok(exec.calls.some((call) => call.fn === "gitPull"));
+    assert.strictEqual(
+      exec.calls.some((call) => call.fn === "gitClone"),
+      false,
+    );
+  });
+
+  it("fails when makepkg fails", async () => {
+    const original = process.exitCode;
+    try {
+      const packageBase = uniquePackageBase("makepkg-fail");
+      await prepareCachedPkgbuild(packageBase);
+      aur.addPackage(makeAurPkg({ Name: "yay", PackageBase: packageBase }));
+      ui.setConfirmAnswer(true);
+      exec.makepkgResult = 1;
+
+      await install(["yay"], installDeps());
+
+      assert.ok(
+        output.calls.some(
+          (call) => call.fn === "fail" && call.args[0] === `makepkg failed for ${packageBase}`,
+        ),
+      );
+      assert.strictEqual(process.exitCode, 1);
+    } finally {
+      process.exitCode = original;
+    }
+  });
+
+  it("fails when no built packages are found", async () => {
+    const original = process.exitCode;
+    try {
+      const packageBase = uniquePackageBase("no-built-packages");
+      await prepareCachedPkgbuild(packageBase);
+      aur.addPackage(makeAurPkg({ Name: "yay", PackageBase: packageBase }));
+      ui.setConfirmAnswer(true);
+
+      await install(["yay"], installDeps());
+
+      assert.ok(
+        output.calls.some(
+          (call) =>
+            call.fn === "fail" && call.args[0] === `no built packages found for ${packageBase}`,
+        ),
+      );
+      assert.strictEqual(process.exitCode, 1);
+    } finally {
+      process.exitCode = original;
+    }
+  });
+
+  it("fails when pacman -U fails", async () => {
+    const original = process.exitCode;
+    try {
+      const packageBase = uniquePackageBase("pacman-u-fail");
+      await prepareCachedPkgbuild(packageBase);
+      aur.addPackage(makeAurPkg({ Name: "yay", PackageBase: packageBase }));
+      ui.setConfirmAnswer(true);
+      exec.builtPackages = ["/tmp/yay.pkg.tar.zst"];
+      exec.sudoPacmanResults = [1];
+
+      await install(["yay"], installDeps());
+
+      assert.ok(
+        output.calls.some(
+          (call) => call.fn === "fail" && call.args[0] === `failed to install ${packageBase}`,
+        ),
+      );
+      assert.strictEqual(process.exitCode, 1);
+    } finally {
+      process.exitCode = original;
+    }
+  });
 });
 
 // --- upgrade ---
@@ -305,5 +470,24 @@ describe("defaultCommand", () => {
 
     // Should not crash, no confirm or pick
     assert.strictEqual(ui.calls.length, 0);
+  });
+
+  it("installs the selected search result", async () => {
+    const packageBase = uniquePackageBase("default-search-install");
+    await prepareCachedPkgbuild(packageBase);
+    aur.addPackage(makeAurPkg({ Name: "yay-bin", PackageBase: packageBase }));
+    ui.setPickAnswer(1);
+    ui.setConfirmAnswer(true);
+    exec.builtPackages = ["/tmp/yay-bin.pkg.tar.zst"];
+
+    await defaultCommand(["yay"], installDeps());
+
+    assert.ok(ui.calls.some((call) => call.fn === "pickNumber"));
+    assert.ok(exec.calls.some((call) => call.fn === "makepkg"));
+    assert.ok(
+      exec.calls.some(
+        (call) => call.fn === "sudoPacman" && Array.isArray(call.args) && call.args[0] === "-U",
+      ),
+    );
   });
 });

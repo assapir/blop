@@ -69,6 +69,20 @@ describe("formatRepoResult", () => {
   });
 });
 
+describe("formatPrompt", () => {
+  it("emits styled output when colors are enabled", () => {
+    const result = new OutputService(true).formatPrompt("Proceed?");
+    assert.notStrictEqual(result, stripVTControlCharacters(result));
+    assert.strictEqual(stripVTControlCharacters(result), "Proceed?");
+  });
+
+  it("respects NODE_DISABLE_COLORS when output colors are enabled", () => {
+    process.env.NODE_DISABLE_COLORS = "1";
+    const result = new OutputService(true).formatPrompt("Proceed?");
+    assert.strictEqual(result, "Proceed?");
+  });
+});
+
 describe("formatAurResult", () => {
   it("includes package name and version", () => {
     const result = new OutputService(false).formatAurResult(aurPkg);
@@ -126,6 +140,45 @@ describe("formatPackageInfo", () => {
   });
 });
 
+describe("error", () => {
+  it("writes a prefixed error message to stderr", () => {
+    const messages: string[] = [];
+    const originalError = console.error;
+    console.error = ((message?: unknown) => {
+      messages.push(String(message ?? ""));
+    }) as typeof console.error;
+
+    try {
+      new OutputService(false).error("boom");
+    } finally {
+      console.error = originalError;
+    }
+
+    assert.deepStrictEqual(messages, ["error: boom"]);
+  });
+});
+
+describe("fail", () => {
+  it("sets exitCode and writes the error message", () => {
+    const messages: string[] = [];
+    const originalError = console.error;
+    const originalExitCode = process.exitCode;
+    console.error = ((message?: unknown) => {
+      messages.push(String(message ?? ""));
+    }) as typeof console.error;
+
+    try {
+      new OutputService(false).fail("boom");
+      assert.strictEqual(process.exitCode, 1);
+    } finally {
+      console.error = originalError;
+      process.exitCode = originalExitCode;
+    }
+
+    assert.deepStrictEqual(messages, ["error: boom"]);
+  });
+});
+
 describe("formatSection", () => {
   it("uses the new sharp marker", () => {
     const result = new OutputService(false).formatSection("Installing from repos: firefox");
@@ -147,5 +200,24 @@ describe("formatSection", () => {
     process.env.NO_COLOR = "1";
     const result = new OutputService(true).formatSection("Checking AUR packages...");
     assert.strictEqual(result, "==> Checking AUR packages...");
+  });
+});
+
+describe("section", () => {
+  it("prints the formatted section through info", () => {
+    const messages: string[] = [];
+    const originalLog = console.log;
+    console.log = ((message?: unknown) => {
+      messages.push(String(message ?? ""));
+    }) as typeof console.log;
+
+    try {
+      const output = new OutputService(false);
+      output.section("Checking AUR packages...");
+    } finally {
+      console.log = originalLog;
+    }
+
+    assert.deepStrictEqual(messages, ["==> Checking AUR packages..."]);
   });
 });
