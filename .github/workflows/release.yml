@@ -38,18 +38,19 @@ jobs:
 
       - name: Configure SSH for AUR
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur
-          chmod 600 ~/.ssh/aur
-          cat > ~/.ssh/config <<EOF
+          ssh_dir="$HOME/.ssh"
+          mkdir -p "$ssh_dir"
+          echo "${{ secrets.AUR_SSH_KEY }}" > "$ssh_dir/aur"
+          chmod 600 "$ssh_dir/aur"
+          cat > "$ssh_dir/config" <<EOF
           Host aur.archlinux.org
-            IdentityFile ~/.ssh/aur
+            IdentityFile $ssh_dir/aur
             IdentitiesOnly yes
             User aur
           EOF
-          touch ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/config ~/.ssh/known_hosts
-          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          touch "$ssh_dir/known_hosts"
+          chmod 600 "$ssh_dir/config" "$ssh_dir/known_hosts"
+          ssh-keyscan -H aur.archlinux.org >> "$ssh_dir/known_hosts" 2>/dev/null
 
       - name: Sync package contents
         run: |
