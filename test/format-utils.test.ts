@@ -121,8 +121,18 @@ describe("confirm", () => {
     assert.strictEqual(result, true);
   });
 
+  it("returns true for 'yes'", async () => {
+    const result = await confirm("proceed?", fakeInput("yes"));
+    assert.strictEqual(result, true);
+  });
+
   it("returns false for 'n'", async () => {
     const result = await confirm("proceed?", fakeInput("n"));
+    assert.strictEqual(result, false);
+  });
+
+  it("returns false for 'no'", async () => {
+    const result = await confirm("proceed?", fakeInput("no"));
     assert.strictEqual(result, false);
   });
 
@@ -131,8 +141,8 @@ describe("confirm", () => {
     assert.strictEqual(result, true);
   });
 
-  it("returns false for 'yes'", async () => {
-    const result = await confirm("proceed?", fakeInput("yes"));
+  it("returns false for unrecognized input", async () => {
+    const result = await confirm("proceed?", fakeInput("maybe"));
     assert.strictEqual(result, false);
   });
 

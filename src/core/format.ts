@@ -53,7 +53,7 @@ export async function prompt(message: string, opts?: PromptOpts): Promise<string
 export async function confirm(message: string, opts?: PromptOpts): Promise<boolean> {
   const answer = await prompt(`→ ${message} (Y/n) `, opts);
   const normalized = answer.trim().toLowerCase();
-  return normalized === "" || normalized === "y";
+  return normalized === "" || normalized === "y" || normalized === "yes";
 }
 
 export async function pickNumber(
