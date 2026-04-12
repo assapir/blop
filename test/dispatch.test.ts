@@ -4,23 +4,24 @@ import { dispatch } from "../src/cli.ts";
 import { createFakeServices } from "./fakes/services.ts";
 
 describe("dispatch", () => {
-  it("handles help without services", async () => {
-    // Should not throw when services is undefined
-    await dispatch({ op: "help" }, undefined);
+  it("uses services.output for help", async () => {
+    const { services, output } = createFakeServices();
+    await dispatch({ op: "help" }, services);
+    const infoCall = output.calls.find((c) => c.fn === "info");
+    assert.ok(infoCall, "should print usage through output service");
   });
 
-  it("handles error without services", async () => {
+  it("uses services.output for error", async () => {
     const original = process.exitCode;
     try {
-      await dispatch({ op: "error", message: "test" }, undefined);
+      const { services, output } = createFakeServices();
+      await dispatch({ op: "error", message: "test" }, services);
+      const failCall = output.calls.find((c) => c.fn === "fail");
+      assert.ok(failCall, "should fail through output service");
       assert.strictEqual(process.exitCode, 1);
     } finally {
       process.exitCode = original;
     }
-  });
-
-  it("throws when services missing for upgrade", async () => {
-    await assert.rejects(() => dispatch({ op: "upgrade" }, undefined), /services required/);
   });
 
   it("routes remove to sudoPacman", async () => {

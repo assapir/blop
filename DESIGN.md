@@ -12,10 +12,11 @@ Service interfaces live in `src/contracts/services.ts`. They define what command
 |----------|---------|
 | `Alpm` | Package database queries (local + sync), version comparison |
 | `Aur` | AUR RPC search and info |
+| `Output` | Color-aware CLI rendering + printing |
 | `Exec` | Shell commands (pacman, git, makepkg) |
 | `Ui` | User interaction (confirm, pick number) |
 | `PacmanConf` | Repo list + mirror URLs (internal, used only by `AlpmService` init) |
-| `Services` | Bundle of `Alpm + Aur + Exec + Ui` passed through dispatch |
+| `Services` | Bundle of `Alpm + Aur + Output + Exec + Ui` passed through dispatch |
 
 ### Implementations
 
@@ -26,8 +27,9 @@ Service classes live in `src/services/`, named to match their file:
 | `AlpmService.ts` | `AlpmService` | `Alpm` |
 | `AurService.ts` | `AurService` | `Aur` |
 | `PacmanConfService.ts` | `PacmanConfService` | `PacmanConf` |
+| `OutputService.ts` | `OutputService` | `Output` |
 
-`Exec` and `Ui` are plain objects of functions (no class needed — stateless).
+`Exec` and `Ui` are plain objects of functions. `Ui` is created from the injected `Output` service so prompts follow the same styling policy as normal output.
 
 ### Composition Root
 
@@ -35,9 +37,10 @@ Service classes live in `src/services/`, named to match their file:
 
 ```
 PacmanConfService(run)  →  AlpmService.create(pacmanConf)  →  Services
+PacmanConfService(run)  →  OutputService(colorEnabled)     →
 AurService()            →
 exec functions          →
-ui functions            →
+ui functions(output)    →
 ```
 
 ### Fakes
@@ -66,17 +69,17 @@ bin.ts
 
 ## Command Signatures
 
-Each command takes only the services it actually uses:
+Each command takes only the services it actually uses, passed as named deps objects rather than positional argument lists:
 
 ```
-search(query, alpm, aur)
-syncInfo(name, alpm, aur)
-queryInfo(name, alpm)
-query(alpm)
-querySearch(query, alpm)
-install(packages, alpm, aur, exec, ui)
-upgrade(alpm, aur, exec, ui)
-defaultCommand(names, alpm, aur, exec, ui)
+search(query, { alpm, aur, output })
+syncInfo(name, { alpm, aur, output })
+queryInfo(name, { alpm, output })
+query({ alpm, output })
+querySearch(query, { alpm, output })
+install(packages, { alpm, aur, exec, ui, output })
+upgrade({ alpm, aur, exec, ui, output })
+defaultCommand(names, { alpm, aur, exec, ui, output })
 ```
 
 ## Testing Strategy

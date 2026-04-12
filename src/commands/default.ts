@@ -1,25 +1,24 @@
-import { info, formatRepoResult, formatAurResult, section } from "../core/format.ts";
 import { install } from "./install.ts";
-import type { Alpm, Aur, Exec, Ui } from "../contracts/services.ts";
+import type { Alpm, Aur, Exec, Output, Ui } from "../contracts/services.ts";
 
 export async function defaultCommand(
   names: string[],
-  alpm: Alpm,
-  aur: Aur,
-  exec: Exec,
-  ui: Ui,
+  deps: { alpm: Alpm; aur: Aur; exec: Exec; ui: Ui; output: Output },
 ): Promise<void> {
   for (const name of names) {
-    await handleOne(name, alpm, aur, exec, ui);
+    await handleOne(name, deps);
   }
 }
 
-async function handleOne(name: string, alpm: Alpm, aur: Aur, exec: Exec, ui: Ui): Promise<void> {
+async function handleOne(
+  name: string,
+  { alpm, aur, exec, ui, output }: { alpm: Alpm; aur: Aur; exec: Exec; ui: Ui; output: Output },
+): Promise<void> {
   // 1. Installed? → offer remove
   const installed = alpm.getInstalledPkg(name);
   if (installed) {
-    info(`${installed.name} ${installed.version} is installed`);
-    if (installed.desc) info(`  ${installed.desc}`);
+    output.info(`${installed.name} ${installed.version} is installed`);
+    if (installed.desc) output.info(`  ${installed.desc}`);
     if (await ui.confirm("Remove?")) {
       await exec.sudoPacman(["-Rns", name]);
     }
@@ -29,9 +28,9 @@ async function handleOne(name: string, alpm: Alpm, aur: Aur, exec: Exec, ui: Ui)
   // 2. In repos? → offer install
   const repoPkg = alpm.findSatisfier(name);
   if (repoPkg) {
-    info(formatRepoResult(repoPkg));
+    output.info(output.formatRepoResult(repoPkg));
     if (await ui.confirm("Install?")) {
-      await install([name], alpm, aur, exec, ui);
+      await install([name], { alpm, aur, exec, ui, output });
     }
     return;
   }
@@ -40,24 +39,24 @@ async function handleOne(name: string, alpm: Alpm, aur: Aur, exec: Exec, ui: Ui)
   const aurResults = await aur.info([name]);
   const exactMatch = aurResults.find((p) => p.Name === name);
   if (exactMatch) {
-    info(formatAurResult(exactMatch));
+    output.info(output.formatAurResult(exactMatch));
     if (await ui.confirm("Install?")) {
-      await install([name], alpm, aur, exec, ui);
+      await install([name], { alpm, aur, exec, ui, output });
     }
     return;
   }
 
   // 4. No exact match → search and let user pick
-  section(`Searching for "${name}"...`);
+  output.section(`Searching for "${name}"...`);
   const searchResults = await aur.search(name);
   if (searchResults.length === 0) {
-    info(`No results for "${name}".`);
+    output.info(`No results for "${name}".`);
     return;
   }
 
   const display = searchResults.slice(0, 20);
   for (let i = 0; i < display.length; i++) {
-    console.log(formatAurResult(display[i], i + 1));
+    output.info(output.formatAurResult(display[i], i + 1));
   }
 
   const pick = await ui.pickNumber(
@@ -66,5 +65,5 @@ async function handleOne(name: string, alpm: Alpm, aur: Aur, exec: Exec, ui: Ui)
   );
   if (pick == null) return;
 
-  await install([display[pick - 1].Name], alpm, aur, exec, ui);
+  await install([display[pick - 1].Name], { alpm, aur, exec, ui, output });
 }

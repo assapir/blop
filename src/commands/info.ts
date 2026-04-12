@@ -1,9 +1,9 @@
-import { formatPackageInfo, formatSize, formatDate, joinDeps, fail } from "../core/format.ts";
+import { formatSize, formatDate, joinDeps } from "../core/format.ts";
 import type { AurInfoResult } from "../core/types.ts";
-import type { Alpm, Aur, PackageInfo } from "../contracts/services.ts";
+import type { Alpm, Aur, Output, PackageInfo } from "../contracts/services.ts";
 
-function formatRepoPkg(pkg: PackageInfo): string {
-  return formatPackageInfo([
+function formatRepoPkg(pkg: PackageInfo, output: Output): string {
+  return output.formatPackageInfo([
     ["Repository", pkg.dbName ?? "unknown"],
     ["Name", pkg.name],
     ["Version", pkg.version],
@@ -22,8 +22,8 @@ function formatRepoPkg(pkg: PackageInfo): string {
   ]);
 }
 
-function formatAurPkg(pkg: AurInfoResult): string {
-  return formatPackageInfo([
+function formatAurPkg(pkg: AurInfoResult, output: Output): string {
+  return output.formatPackageInfo([
     ["Repository", "aur"],
     ["Name", pkg.Name],
     ["Version", pkg.Version],
@@ -43,9 +43,9 @@ function formatAurPkg(pkg: AurInfoResult): string {
   ]);
 }
 
-function formatInstalledPkg(pkg: PackageInfo): string {
+function formatInstalledPkg(pkg: PackageInfo, output: Output): string {
   const reason = pkg.reason === 0 ? "Explicitly installed" : "Installed as dependency";
-  return formatPackageInfo([
+  return output.formatPackageInfo([
     ["Name", pkg.name],
     ["Version", pkg.version],
     ["Description", pkg.desc ?? "None"],
@@ -66,29 +66,35 @@ function formatInstalledPkg(pkg: PackageInfo): string {
   ]);
 }
 
-export async function syncInfo(name: string, alpm: Alpm, aur: Aur): Promise<void> {
+export async function syncInfo(
+  name: string,
+  { alpm, aur, output }: { alpm: Alpm; aur: Aur; output: Output },
+): Promise<void> {
   const repoPkg = alpm.findSatisfier(name);
   if (repoPkg) {
-    console.log(formatRepoPkg(repoPkg));
+    output.info(formatRepoPkg(repoPkg, output));
     return;
   }
 
   const aurResults = await aur.info([name]);
   const aurPkg = aurResults.find((p) => p.Name === name);
   if (aurPkg) {
-    console.log(formatAurPkg(aurPkg));
+    output.info(formatAurPkg(aurPkg, output));
     return;
   }
 
-  fail(`package '${name}' was not found`);
+  output.fail(`package '${name}' was not found`);
 }
 
-export async function queryInfo(name: string, alpm: Alpm): Promise<void> {
+export async function queryInfo(
+  name: string,
+  { alpm, output }: { alpm: Alpm; output: Output },
+): Promise<void> {
   const pkg = alpm.getInstalledPkg(name);
   if (pkg) {
-    console.log(formatInstalledPkg(pkg));
+    output.info(formatInstalledPkg(pkg, output));
     return;
   }
 
-  fail(`package '${name}' was not found`);
+  output.fail(`package '${name}' was not found`);
 }

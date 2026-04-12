@@ -7,6 +7,7 @@ export type { PackageInfo };
 export type PacmanConf = {
   getRepoList(): Promise<string[]>;
   getRepoServers(repo: string): Promise<string[]>;
+  isColorEnabled(): Promise<boolean>;
 };
 
 export type Alpm = {
@@ -26,6 +27,18 @@ export type Aur = {
   info(names: string[]): Promise<AurInfoResult[]>;
 };
 
+export type Output = {
+  formatRepoResult(pkg: PackageInfo, index?: number): string;
+  formatAurResult(pkg: AurSearchResult, index?: number): string;
+  formatPackageInfo(fields: [string, string][]): string;
+  formatPrompt(message: string): string;
+  formatSection(message: string): string;
+  info(message: string): void;
+  error(message: string): void;
+  fail(message: string): void;
+  section(message: string): void;
+};
+
 export type Exec = {
   sudoPacman(args: string[]): Promise<number>;
   gitClone(url: string, dest: string): Promise<{ stdout: string; stderr: string }>;
@@ -42,6 +55,7 @@ export type Ui = {
 export type Services = {
   alpm: Alpm;
   aur: Aur;
+  output: Output;
   exec: Exec;
   ui: Ui;
 };

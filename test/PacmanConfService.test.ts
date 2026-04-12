@@ -38,4 +38,18 @@ describe("PacmanConfService", () => {
     const repos = await fake.getRepoList();
     assert.deepStrictEqual(repos, ["core", "extra", "multilib"]);
   });
+
+  it("isColorEnabled returns true when Color is set", async () => {
+    const fakeRun = async () => ({ stdout: "Color\n", stderr: "" });
+    const fake = new PacmanConfService(fakeRun);
+    const enabled = await fake.isColorEnabled();
+    assert.strictEqual(enabled, true);
+  });
+
+  it("isColorEnabled returns false when Color is not set", async () => {
+    const fakeRun = async () => ({ stdout: "", stderr: "" });
+    const fake = new PacmanConfService(fakeRun);
+    const enabled = await fake.isColorEnabled();
+    assert.strictEqual(enabled, false);
+  });
 });

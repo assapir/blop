@@ -1,21 +1,23 @@
-import { info } from "../core/format.ts";
-import type { Alpm } from "../contracts/services.ts";
+import type { Alpm, Output } from "../contracts/services.ts";
 
-export function query(alpm: Alpm): void {
+export function query({ alpm, output }: { alpm: Alpm; output: Output }): void {
   for (const pkg of alpm.getInstalledPackages()) {
-    console.log(`${pkg.name} ${pkg.version}`);
+    output.info(`${pkg.name} ${pkg.version}`);
   }
 }
 
-export function querySearch(queryStr: string, alpm: Alpm): void {
+export function querySearch(
+  queryStr: string,
+  { alpm, output }: { alpm: Alpm; output: Output },
+): void {
   const results = alpm.searchLocal([queryStr]);
 
   if (results.length === 0) {
-    info(`No installed packages match "${queryStr}".`);
+    output.info(`No installed packages match "${queryStr}".`);
     return;
   }
 
   for (const pkg of results) {
-    console.log(`${pkg.name} ${pkg.version}`);
+    output.info(`${pkg.name} ${pkg.version}`);
   }
 }
