@@ -1,12 +1,12 @@
-# Plan: Build `blop` — A Smart AUR Helper CLI
+# Plan: Build `naruto` — A Smart AUR Helper CLI
 
 ## Context
 
 We've built and published `libalpm` — Node.js bindings for libalpm via napi-rs. Now we want to build a modern AUR helper CLI on top of it that seamlessly handles both official repo packages and AUR packages.
 
-**UX philosophy**: Smart defaults, minimal flags, cautious. Instead of memorizing pacman flags, the user just types `blop <name>` and the tool figures out the right thing to do.
+**UX philosophy**: Smart defaults, minimal flags, cautious. Instead of memorizing pacman flags, the user just types `naruto <name>` and the tool figures out the right thing to do.
 
-The project will live at `/home/assaf/code/blop/`.
+The project will live at `/home/assaf/code/naruto/`.
 
 ## CLI UX Design
 
@@ -14,8 +14,8 @@ The project will live at `/home/assaf/code/blop/`.
 
 | Command | What it does |
 |---------|-------------|
-| `blop` | System upgrade — repos + AUR (`-Syu`) |
-| `blop <name>` | Smart: if installed → offer remove; if available → offer install; else → search + pick |
+| `naruto` | System upgrade — repos + AUR (`-Syu`) |
+| `naruto <name>` | Smart: if installed → offer remove; if available → offer install; else → search + pick |
 
 ### Full pacman flag support
 
@@ -40,17 +40,17 @@ Any unrecognized flags are passed through to pacman directly.
 ### Interaction examples
 
 ```
-$ blop firefox
+$ naruto firefox
 firefox 138.0-1 is installed (explicit)
   Standalone web browser from mozilla.org
 → Remove? [y/N]
 
-$ blop yay
+$ naruto yay
 yay 12.5.7-1 found in AUR (+2547 votes)
   Yet another yogurt. Pacman wrapper and AUR helper written in go.
 → Install? [y/N]
 
-$ blop firef
+$ naruto firef
 Searching repos and AUR for "firef"...
  1  extra/firefox 138.0-1
     Standalone web browser from mozilla.org
@@ -60,7 +60,7 @@ Searching repos and AUR for "firef"...
     Nightly build of the Firefox browser
 Pick a package [1-3] or q to quit:
 
-$ blop
+$ naruto
 :: Upgrading official packages...
 (runs sudo pacman -Syu)
 :: Checking AUR packages...
@@ -71,7 +71,7 @@ $ blop
 ## Project Structure
 
 ```
-/home/assaf/code/blop/
+/home/assaf/code/naruto/
   package.json
   tsconfig.json
   LICENSE                      (GPL-3.0-or-later)
@@ -82,7 +82,7 @@ $ blop
       default.ts               (smart default: search/install/remove)
       install.ts               (-S: install packages, repo or AUR)
       search.ts                (-Ss: search repos + AUR)
-      upgrade.ts               (-Syu / bare `blop`: system upgrade + AUR)
+      upgrade.ts               (-Syu / bare `naruto`: system upgrade + AUR)
       info.ts                  (-Si/-Qi: package info)
       query.ts                 (-Q/-Qs: list/search installed)
       remove.ts                (-R/-Rs/-Rns: delegate to pacman)
@@ -113,7 +113,7 @@ $ blop
 
 7. **No cache / no SQLite** — A single user won't hit 4000 req/day. Every operation hits the AUR API fresh. No schema management, no TTL logic, no invalidation. Simple.
 
-8. **`blop` with no args = full upgrade** — The most common operation. Just type `blop` and it does `sudo pacman -Syu` + AUR upgrades. No need to remember flags.
+8. **`naruto` with no args = full upgrade** — The most common operation. Just type `naruto` and it does `sudo pacman -Syu` + AUR upgrades. No need to remember flags.
 
 9. **DX: oxfmt + oxlint** — `oxfmt` (v0.44.0) for formatting, `oxlint` (v1.59.0) for linting. Both Rust-based, instant, zero-config. Added as devDependencies. Scripts: `pnpm fmt`, `pnpm lint`, `pnpm check` (typecheck + lint).
 
@@ -137,10 +137,10 @@ All Node 25 built-ins, zero external dependencies besides `libalpm`:
 
 ## Implementation Phases
 
-### Phase 1: Project Skeleton + Core Utilities
+### Phase 1: Project Skeleton + Core Utilities ✅
 
-1. Create `/home/assaf/code/blop/`, init project
-2. **`package.json`** — `"type": "module"`, `"bin": { "blop": "src/bin.ts" }`, dep on `libalpm@^0.1.2`, devDep on `@types/node`
+1. Create `/home/assaf/code/naruto/`, init project
+2. **`package.json`** — `"type": "module"`, `"bin": { "naruto": "src/bin.ts" }`, dep on `libalpm@^0.1.2`, devDep on `@types/node`
 3. **`tsconfig.json`** — `erasableSyntaxOnly`, `verbatimModuleSyntax`, `strict`, `module: "nodenext"`
 4. **`src/core/types.ts`** — AUR RPC response types, dependency resolution types
 5. **`src/core/format.ts`** — Built on `util.styleText()`. Exports: `formatSearchResult()` (bold blue repo name or bold magenta "aur", bold white pkg name, bold green version, yellow votes/popularity, dim description), `formatPackageInfo()` (labeled fields with colored keys), `confirm()` (bold cyan prompt), `pickNumber()` (bold cyan prompt). Section headers use `::` prefix in bold blue like pacman does. Errors in bold red. Installed markers in bright green.
@@ -148,60 +148,76 @@ All Node 25 built-ins, zero external dependencies besides `libalpm`:
 7. **`src/bin.ts`** — Shebang, imports cli.ts, top-level error boundary
 8. **`src/cli.ts`** — No args → `upgrade`. First arg starts with `-` → parse pacman flags and dispatch (`-S`, `-Ss`, `-Si`, `-Syu`, `-Q`, `-Qi`, `-Qs`, `-R`, `-Rs`, `-Rns`). Bare name → `default` command. Unrecognized flags → pass through to `sudo pacman`.
 
-### Phase 2: Service Layer
+### Phase 2: Service Layer ✅
 
-9. **`src/services/pacman-conf.ts`** — `getRepoList()`, `getRepoServers()`
-10. **`src/services/alpm.ts`** — `getAlpmHandle()`, convenience wrappers: `isInstalled()`, `getInstalledPkg()`, `findInRepos()`, `getForeignPackages()`
-11. **`src/services/aur-rpc.ts`** — `aurSearch(query)`, `aurInfo(names[])` using native `fetch()`
+DI architecture with contracts, class implementations, and fakes.
 
-### Phase 3: Commands
+**Contracts** (`src/contracts/services.ts`):
+- `Alpm`, `Aur`, `Exec`, `Ui`, `PacmanConf`, `Services` types
+- Re-exports `PackageInfo` from libalpm so commands don't import libalpm directly
 
-12. **`src/commands/default.ts`** — The smart default UX:
-    - Try exact match in local DB → "installed, remove?"
-    - Try exact match in sync DBs → "available in repos, install?"
-    - Try exact match in AUR → "available in AUR, install?"
-    - No exact match → search repos + AUR, show numbered list, let user pick
-13. **`src/commands/search.ts`** — `-Ss`: `searchAllSync()` + `aurSearch()`, merged, colored
-14. **`src/commands/info.ts`** — `-Si`: sync → AUR. `-Qi`: local DB. Display detailed info
-15. **`src/commands/query.ts`** — `-Q`: list all installed. `-Qs`: search installed
-16. **`src/commands/remove.ts`** — `-R`/`-Rs`/`-Rns`: delegate to `sudo pacman` with flags
+**Service classes** (`src/services/`):
+9. **`PacmanConfService.ts`** — Injects `RunFn`. `getRepoList()`, `getRepoServers()`
+10. **`AlpmService.ts`** — Injects `PacmanConf` via `static create()`. `isInstalled()`, `getInstalledPkg()`, `findSatisfier()`, `findSatisfierLocal()`, `getForeignPackages()`, `searchSync()`, `searchLocal()`, `vercmp()`
+11. **`AurService.ts`** — Injects `fetch`. `search(query)`, `info(names[])` with 200-name batching
+12. **`create.ts`** — Composition root: `createServices()` wires real implementations
 
-### Phase 4: Dependency Resolution
+**Fakes** (`test/fakes/`):
+- `FakeAlpmService`, `FakeAurService`, `FakePacmanConfService`, `FakeExecService`, `FakeUiService`
+- `createFakeServices()` helper wires all fakes
 
-17. **`src/core/resolver.ts`** —
-    - For each target, fetch AUR info
-    - For each dep in `Depends` + `MakeDepends`:
-      - `findSatisfierLocal(dep)` → skip
-      - `findSatisfierSync(dep)` → add to sync list
-      - Else → look up in AUR, recurse
-    - Topological sort via Kahn's algorithm
-    - Cycle detection
-    - Returns `InstallPlan { syncPackages: string[], aurPackages: ResolvedPackage[] }`
+### Phase 3: Commands ✅
 
-### Phase 5: Install Flow + Upgrade
+Commands take only the specific services they need (not the full `Services` bundle):
 
-18. **`src/commands/install.ts`** + install flow (used by default command and `-S`):
-    - Repo packages → `sudo pacman -S --needed`
-    - AUR packages → resolve deps → show plan → confirm → install sync deps → for each in topo order: git clone to `~/.cache/blop/<pkgbase>/`, show PKGBUILD, prompt, `makepkg -src`, `sudo pacman -U`
-    - Use `PackageBase` for clone dir (handles split packages)
+13. **`src/commands/default.ts`** — `defaultCommand(names, alpm, aur, exec, ui)`: installed → remove? → repos → install? → AUR exact → install? → search → pick
+14. **`src/commands/search.ts`** — `search(query, alpm, aur)`: parallel searchSync + aurSearch, formatted output
+15. **`src/commands/info.ts`** — `syncInfo(name, alpm, aur)`: sync → AUR info. `queryInfo(name, alpm)`: local DB info
+16. **`src/commands/query.ts`** — `query(alpm)`: list installed. `querySearch(query, alpm)`: search installed
+17. **`src/commands/remove.ts`** — Handled inline in `dispatch()` via `exec.sudoPacman()`
 
-19. **`src/commands/upgrade.ts`** —
+### Phase 4: Dependency Resolution ✅
+
+18. **`src/core/resolver.ts`** — `resolve(names, alpm, aur)`:
+    - DFS with batch AUR fetching per level (not N+1)
+    - `findSatisfierLocal(dep)` → skip, `findSatisfier(dep)` → sync list, else → AUR recurse
+    - Topological sort via Kahn's algorithm with index pointer
+    - Cycle detection via visiting/visited sets
+    - Returns `InstallPlan { syncPackages, aurPackages }`
+    - Known limitation: does not handle virtual `Provides` dependencies
+
+### Phase 5: Install Flow + Upgrade ✅
+
+19. **`src/commands/install.ts`** — `install(packages, alpm, aur, exec, ui)`:
+    - Separates repo vs AUR via `findSatisfier()`
+    - Repo → `sudo pacman -S --needed`, AUR → resolve → show plan → confirm
+    - Per AUR package: check dir exists (no swallowed clone errors), show PKGBUILD, `makepkg -src`, `sudo pacman -U`
+
+20. **`src/commands/upgrade.ts`** — `upgrade(alpm, aur, exec, ui)`:
     - `sudo pacman -Syu` for repos
-    - Get foreign packages → batch AUR info → `vercmp()` to find outdated
-    - Show upgrade list → confirm → install flow
+    - `getForeignPackages()` → batch `aur.info()` → `vercmp()` → show outdated → confirm → install
 
-## Critical Files & Reuse
+### App Lifecycle
 
-- **`libalpm` API** (`/home/assaf/code/alpm-node/index.d.ts`): `AlpmHandle` with `findSatisfierLocal`, `findSatisfierSync`, `searchAllSync`, `getLocalPkg`, `getLocalPkgs`, `registerSyncDb`, `getSyncPkg`; `vercmp()`; `sigLevel()`
-- **AUR RPC**: `https://aur.archlinux.org/rpc?v=5` — search (fewer fields), info (full metadata + deps). Batch via `arg[]`.
+- **`src/bin.ts`** — Parses command, creates services only if needed (`help`/`error` skip init), delegates to `dispatch()`
+- **`src/cli.ts`** — Pure `parseCommand()` + `dispatch(cmd, services?)` that routes to command functions
+- Shared utilities: `fail()` (error + exitCode), `parseDepName()`, `formatSize()`, `formatDate()`, `joinDeps()`
 
-## Important Edge Cases
+## Architecture
 
-- **Root check**: Refuse to run as root. Only `sudo pacman` runs privileged.
-- **Split packages**: Use `PackageBase` from AUR RPC for git clone dir
-- **PKGBUILD review**: Show diff on update (`git diff`), full content on new install
-- **`--needed` flag**: Always pass to `pacman -S` for sync deps
-- **makepkg flags**: `-src` = install sync deps, remove makedeps after, clean
+See `DESIGN.md` for full DI architecture documentation.
+
+```
+bin.ts → parseCommand() → dispatch(cmd, services?)
+                              ↓
+                    commands/* (take specific deps)
+                        ↓           ↓
+                  services/*    core/resolver.ts
+                      ↓
+                  contracts/services.ts (type contracts)
+                      ↓
+                  libalpm (napi-rs)
+```
 
 ## Verification
 
@@ -214,5 +230,6 @@ All Node 25 built-ins, zero external dependencies besides `libalpm`:
 7. `node src/bin.ts -Si pacman` — sync package info
 8. `node src/bin.ts -Qi pacman` — installed package info
 9. `node src/bin.ts -Q` — list installed packages
-10. `pnpm lint` — oxlint passes
-11. `pnpm fmt` — oxfmt formats
+10. `pnpm test` — 70 tests pass
+11. `pnpm check` — tsgo + oxlint pass
+12. `pnpm fmt` — oxfmt formats

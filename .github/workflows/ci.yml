@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Install system deps
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm nodejs npm git
+
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install project deps
+        run: pnpm install
+
+      - name: Format
+        run: pnpm fmt
+
+      - name: Typecheck + lint
+        run: pnpm check
+
+      - name: Tests
+        run: pnpm test
+
+  e2e:
+    name: E2E (install + uninstall)
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+      options: --privileged
+    steps:
+      - name: Install system deps
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm nodejs npm git sudo
+
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm + project deps
+        run: |
+          npm install -g pnpm
+          pnpm install
+
+      - name: Create build user
+        run: |
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown -R builder:builder .
+
+      - name: Run E2E test
+        run: su builder -c "./test/e2e.sh"

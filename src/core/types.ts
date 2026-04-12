@@ -33,6 +33,11 @@ export type AurResponse<T> = {
   results: T[];
 };
 
+/** Strip version constraint from a dependency string, e.g. "foo>=1.0" → "foo" */
+export function parseDepName(dep: string): string {
+  return dep.split(/[><=]/)[0];
+}
+
 export type ResolvedPackage = {
   name: string;
   version: string;

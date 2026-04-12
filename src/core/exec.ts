@@ -35,7 +35,11 @@ export function sudoPacman(args: string[]): Promise<number> {
 }
 
 export function gitClone(url: string, dest: string): Promise<{ stdout: string; stderr: string }> {
-  return run("git", ["clone", url, dest]);
+  return run("git", ["clone", "--depth=1", url, dest]);
+}
+
+export function gitPull(cwd: string): Promise<{ stdout: string; stderr: string }> {
+  return run("git", ["pull", "--depth=1"], { cwd });
 }
 
 export function makepkg(cwd: string, args: string[]): Promise<number> {

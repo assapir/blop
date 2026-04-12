@@ -1,6 +1,12 @@
 import { parseArgs } from "node:util";
-import { error, section } from "./core/format.ts";
-import { sudoPacman } from "./core/exec.ts";
+import { fail } from "./core/format.ts";
+import { search } from "./commands/search.ts";
+import { syncInfo, queryInfo } from "./commands/info.ts";
+import { query, querySearch } from "./commands/query.ts";
+import { install } from "./commands/install.ts";
+import { upgrade } from "./commands/upgrade.ts";
+import { defaultCommand } from "./commands/default.ts";
+import type { Services } from "./contracts/services.ts";
 
 const OPERATIONS = [
   ["-S, --sync <pkg>", "Install package (repo or AUR)"],
@@ -20,11 +26,11 @@ const OPERATIONS = [
 function buildUsage(): string {
   const pad = Math.max(...OPERATIONS.map(([flags]) => flags.length)) + 2;
   const ops = OPERATIONS.map(([flags, desc]) => `  ${flags.padEnd(pad)}${desc}`).join("\n");
-  return `Usage: blop [operation] [package(s)]
+  return `Usage: naruto [operation] [package(s)]
 
 Smart defaults:
-  blop                  System upgrade (repos + AUR)
-  blop <name>           Smart: install, remove, or search
+  naruto                  System upgrade (repos + AUR)
+  naruto <name>           Smart: install, remove, or search
 
 Operations:
 ${ops}`;
@@ -131,57 +137,52 @@ export function parseCommand(argv: string[]): Command {
   return { op: "passthrough", args: argv };
 }
 
-export async function main(): Promise<void> {
-  const cmd = parseCommand(process.argv.slice(2));
-
+export async function dispatch(cmd: Command, services?: Services): Promise<void> {
   switch (cmd.op) {
     case "help":
       console.log(USAGE);
       return;
     case "error":
-      error(cmd.message);
-      process.exitCode = 1;
+      fail(cmd.message);
       return;
+  }
+
+  if (!services) throw new Error("services required for this command");
+  const { alpm, aur, exec, ui } = services;
+
+  switch (cmd.op) {
     case "upgrade":
-      section("Upgrading system...");
-      // TODO: upgrade()
+      await upgrade(alpm, aur, exec, ui);
       return;
     case "default":
-      section(`Smart lookup: ${cmd.names.join(", ")}...`);
-      // TODO: defaultCommand(cmd.names)
+      await defaultCommand(cmd.names, alpm, aur, exec, ui);
       return;
     case "search":
-      section(`Searching for "${cmd.query}"...`);
-      // TODO: search(cmd.query)
+      await search(cmd.query, alpm, aur);
       return;
     case "syncInfo":
-      section(`Info: ${cmd.package}`);
-      // TODO: syncInfo(cmd.package)
+      await syncInfo(cmd.package, alpm, aur);
       return;
     case "refreshDb":
-      await sudoPacman(["-Sy"]);
+      await exec.sudoPacman(["-Sy"]);
       return;
     case "install":
-      section(`Installing: ${cmd.packages.join(", ")}...`);
-      // TODO: install(cmd.packages)
+      await install(cmd.packages, alpm, aur, exec, ui);
       return;
     case "query":
-      section("Listing installed packages...");
-      // TODO: query()
+      query(alpm);
       return;
     case "querySearch":
-      section(`Searching installed for "${cmd.query}"...`);
-      // TODO: querySearch(cmd.query)
+      querySearch(cmd.query, alpm);
       return;
     case "queryInfo":
-      section(`Installed info: ${cmd.package}`);
-      // TODO: queryInfo(cmd.package)
+      await queryInfo(cmd.package, alpm);
       return;
     case "remove":
-      await sudoPacman([cmd.flags, ...cmd.packages]);
+      await exec.sudoPacman([cmd.flags, ...cmd.packages]);
       return;
     case "passthrough":
-      await sudoPacman(cmd.args);
+      await exec.sudoPacman(cmd.args);
       return;
   }
 }

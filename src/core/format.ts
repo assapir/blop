@@ -36,8 +36,13 @@ export function formatPackageInfo(fields: [string, string][]): string {
     .join("\n");
 }
 
-async function prompt(message: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+type PromptOpts = { input?: NodeJS.ReadableStream; output?: NodeJS.WritableStream };
+
+export async function prompt(message: string, opts?: PromptOpts): Promise<string> {
+  const rl = createInterface({
+    input: opts?.input ?? process.stdin,
+    output: opts?.output ?? process.stdout,
+  });
   try {
     return await rl.question(styleText(["bold", "cyanBright"], message));
   } finally {
@@ -45,13 +50,17 @@ async function prompt(message: string): Promise<string> {
   }
 }
 
-export async function confirm(message: string): Promise<boolean> {
-  const answer = await prompt(`→ ${message} `);
+export async function confirm(message: string, opts?: PromptOpts): Promise<boolean> {
+  const answer = await prompt(`→ ${message} `, opts);
   return answer.trim().toLowerCase() === "y";
 }
 
-export async function pickNumber(message: string, max: number): Promise<number | null> {
-  const answer = await prompt(`${message} `);
+export async function pickNumber(
+  message: string,
+  max: number,
+  opts?: PromptOpts,
+): Promise<number | null> {
+  const answer = await prompt(`${message} `, opts);
   const trimmed = answer.trim();
   if (trimmed === "q" || trimmed === "") return null;
   const n = parseInt(trimmed, 10);
@@ -59,8 +68,28 @@ export async function pickNumber(message: string, max: number): Promise<number |
   return n;
 }
 
+export function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`;
+}
+
+export function formatDate(epoch: number): string {
+  return new Date(epoch * 1000).toISOString().split("T")[0];
+}
+
+export function joinDeps(deps: { depString: string }[]): string {
+  return deps.map((d) => d.depString).join("  ") || "None";
+}
+
 export function error(msg: string): void {
   console.error(styleText(["bold", "redBright"], `error: ${msg}`));
+}
+
+export function fail(msg: string): void {
+  error(msg);
+  process.exitCode = 1;
 }
 
 export function info(msg: string): void {
@@ -68,5 +97,7 @@ export function info(msg: string): void {
 }
 
 export function section(msg: string): void {
-  console.log(`${styleText(["bold", "blueBright"], "::")} ${styleText(["bold", "whiteBright"], msg)}`);
+  console.log(
+    `${styleText(["bold", "blueBright"], "::")} ${styleText(["bold", "whiteBright"], msg)}`,
+  );
 }
