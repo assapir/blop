@@ -41,11 +41,19 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur
           chmod 600 ~/.ssh/aur
-          echo -e "Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur\n  User aur" > ~/.ssh/config
-          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          cat > ~/.ssh/config <<EOF
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            IdentitiesOnly yes
+            User aur
+          EOF
+          touch ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/config ~/.ssh/known_hosts
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Sync package contents
         run: |
+          export GIT_SSH_COMMAND="ssh -F $HOME/.ssh/config -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes"
           pkg_dir="$GITHUB_WORKSPACE/aur/naruto-git"
           git clone ssh://aur@aur.archlinux.org/naruto-git.git aur-repo
           cd aur-repo
