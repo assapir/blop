@@ -51,9 +51,20 @@ jobs:
       - name: Validate publish config
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          MAIN_PUSH_TOKEN: ${{ secrets.MAIN_PUSH_TOKEN }}
         run: |
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "Publish must run from main." >&2
+            exit 1
+          fi
+
           if [ -z "$AUR_SSH_KEY" ]; then
             echo "AUR_SSH_KEY secret is not configured." >&2
+            exit 1
+          fi
+
+          if [ -z "$MAIN_PUSH_TOKEN" ]; then
+            echo "MAIN_PUSH_TOKEN secret is not configured." >&2
             exit 1
           fi
 
@@ -80,7 +91,7 @@ jobs:
 
       - name: Refresh checked-in AUR metadata
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          MAIN_PUSH_TOKEN: ${{ secrets.MAIN_PUSH_TOKEN }}
         run: |
           pkg_dir="$GITHUB_WORKSPACE/aur/naruto-git"
           pkgver="r$(git rev-list --count HEAD -- . ':(exclude)aur/naruto-git/**').$(git log -1 --format=%h -- . ':(exclude)aur/naruto-git/**')"
@@ -102,7 +113,7 @@ jobs:
             exit 0
           fi
 
-          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$MAIN_PUSH_TOKEN" | base64 | tr -d '\n')"
           git commit -m "Update AUR metadata to $pkgver"
           git -c http.https://github.com/.extraheader="$auth_header" push origin HEAD:main
 
