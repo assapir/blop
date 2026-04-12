@@ -22,6 +22,22 @@ jobs:
       - name: Install deps
         run: pacman -Syu --noconfirm && pacman -S --noconfirm git openssh pnpm
 
+      - name: Restore git checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          remote_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            git remote set-url origin "$remote_url"
+            exit 0
+          fi
+
+          git init
+          git remote add origin "$remote_url"
+          git fetch origin "refs/heads/${GITHUB_REF_NAME}:refs/remotes/origin/${GITHUB_REF_NAME}"
+          git checkout -B "${GITHUB_REF_NAME}" -f "origin/${GITHUB_REF_NAME}"
+
       - name: Validate publish config
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
