@@ -26,17 +26,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          remote_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          repo_url="https://github.com/${GITHUB_REPOSITORY}.git"
 
           if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-            git remote set-url origin "$remote_url"
+            git remote set-url origin "$repo_url"
             exit 0
           fi
 
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
           git init
-          git remote add origin "$remote_url"
-          git fetch origin "refs/heads/${GITHUB_REF_NAME}:refs/remotes/origin/${GITHUB_REF_NAME}"
-          git checkout -B "${GITHUB_REF_NAME}" -f "origin/${GITHUB_REF_NAME}"
+          git remote add origin "$repo_url"
+          git -c http.https://github.com/.extraheader="$auth_header" fetch origin "${GITHUB_REF}:refs/github/target-ref"
+
+          case "$GITHUB_REF" in
+            refs/heads/*)
+              git checkout -B "${GITHUB_REF_NAME}" -f refs/github/target-ref
+              ;;
+            *)
+              git checkout --detach -f refs/github/target-ref
+              ;;
+          esac
 
       - name: Validate publish config
         env:
@@ -69,6 +78,8 @@ jobs:
           ssh-keyscan -H aur.archlinux.org >> "$ssh_dir/known_hosts" 2>/dev/null
 
       - name: Refresh checked-in AUR metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           pkg_dir="$GITHUB_WORKSPACE/aur/naruto-git"
           pkgver="r$(git rev-list --count HEAD -- . ':(exclude)aur/naruto-git/**').$(git log -1 --format=%h -- . ':(exclude)aur/naruto-git/**')"
@@ -90,8 +101,9 @@ jobs:
             exit 0
           fi
 
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
           git commit -m "Update AUR metadata to $pkgver"
-          git push origin HEAD:main
+          git -c http.https://github.com/.extraheader="$auth_header" push origin HEAD:main
 
       - name: Sync package contents
         run: |
