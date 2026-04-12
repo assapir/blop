@@ -3,10 +3,12 @@ import type { Exec } from "../../src/contracts/services.ts";
 export class FakeExecService implements Exec {
   calls: { fn: string; args: unknown[] }[] = [];
   builtPackages: string[] = [];
+  sudoPacmanResults: number[] = [];
+  makepkgResult = 0;
 
   async sudoPacman(args: string[]): Promise<number> {
     this.calls.push({ fn: "sudoPacman", args });
-    return 0;
+    return this.sudoPacmanResults.shift() ?? 0;
   }
 
   async gitClone(url: string, dest: string): Promise<{ stdout: string; stderr: string }> {
@@ -21,7 +23,7 @@ export class FakeExecService implements Exec {
 
   async makepkg(cwd: string, args: string[]): Promise<number> {
     this.calls.push({ fn: "makepkg", args: [cwd, args] });
-    return 0;
+    return this.makepkgResult;
   }
 
   async findBuiltPackages(cwd: string): Promise<string[]> {

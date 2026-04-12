@@ -18,4 +18,9 @@ export class PacmanConfService implements PacmanConf {
     const { stdout } = await this.#run("pacman-conf", ["--repo", repo, "Server"]);
     return stdout.split("\n").filter(Boolean);
   }
+
+  async isColorEnabled(): Promise<boolean> {
+    const { stdout } = await this.#run("pacman-conf", ["Color"]);
+    return stdout.trim() === "Color";
+  }
 }

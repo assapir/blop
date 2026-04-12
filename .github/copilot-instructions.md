@@ -17,7 +17,7 @@
 - See [DESIGN.md](../DESIGN.md) for the fuller DI and composition-root architecture.
 - Entry flow is `src/bin.ts -> parseCommand()` in `src/cli.ts` -> `createServices()` -> `dispatch()`. `help` and parse errors are handled before service initialization.
 - `parseCommand()` is pure and returns a discriminated `Command` union. Bare `naruto` means full upgrade, bare package names use the smart default flow, and unknown pacman-style flags are passed through to pacman.
-- `src/contracts/services.ts` defines the dependency boundaries. Commands do not call concrete implementations directly; they receive only the contracts they need (`Alpm`, `Aur`, `Exec`, `Ui`).
+- `src/contracts/services.ts` defines the dependency boundaries. Commands do not call concrete implementations directly; they receive only the contracts they need (`Alpm`, `Aur`, `Exec`, `Ui`, `Output`), preferably via small named deps objects.
 - `src/services/create.ts` is the composition root. It wires `PacmanConfService` into `AlpmService.create()`, creates `AurService`, and exposes exec/ui helpers as plain function objects.
 - `AlpmService` is the local/sync package database boundary over `libalpm`. `AurService` is the AUR RPC client and batches `info()` requests in groups of 200.
 - AUR installs and upgrades converge in `src/commands/install.ts` and `src/commands/upgrade.ts`, with dependency planning in `src/core/resolver.ts`. The resolver separates sync dependencies from AUR packages and topologically sorts AUR builds before `makepkg` and `pacman -U`.

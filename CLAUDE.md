@@ -28,8 +28,8 @@ bin.ts → cli.ts → commands/* → services/* → core/*
 - **`src/bin.ts`** — Entry point with shebang and top-level error boundary (uses top-level await)
 - **`src/cli.ts`** — `parseCommand(argv)` returns a `Command` discriminated union, `dispatch()` routes it. Uses `node:util parseArgs()` with short flags (`-S`, `-Q`, `-R`, `-s`, `-i`, `-y`, `-u`, `-n`) and long names (`--sync`, `--query`, `--remove`, `--search`, `--info`, `--refresh`, `--upgrades`, `--nosave`). Unknown flags pass through to pacman.
 - **`src/contracts/`** — Service type contracts (Alpm, Aur, Exec, Ui, Services)
-- **`src/core/`** — Types, formatting (styleText), child process helpers, dependency resolver
-- **`src/services/`** — AlpmService, AurService, PacmanConfService + composition root
+- **`src/core/`** — Types, pure formatting helpers, child process helpers, dependency resolver
+- **`src/services/`** — AlpmService, AurService, PacmanConfService, OutputService + composition root
 - **`src/commands/`** — One module per operation (install, search, upgrade, info, query, remove, default)
 
 ## Key constraints
@@ -38,8 +38,17 @@ bin.ts → cli.ts → commands/* → services/* → core/*
 - **`verbatimModuleSyntax: true`** — Use `import type` for type-only imports.
 - **Zero external runtime deps** — Only `libalpm`. Use `node:util styleText()` for colors, `node:readline/promises` for prompts, native `fetch()` for HTTP, `node:child_process` for processes.
 - **ESM only** — `"type": "module"` in package.json. All imports use `.ts` extensions.
-- **Vivid colors** — repo names bold blue, AUR bold magenta, versions bold green, votes yellow, descriptions dim, prompts bold cyan, errors bold red, section headers with `::` in bold blue. Uses `styleText()` which respects `NO_COLOR` automatically.
+- **Vivid colors** — repo names bold blue, AUR bold magenta, versions bold green, votes yellow, descriptions dim, prompts bold cyan, errors bold red, section headers use a sharp ASCII marker. `OutputService` owns color-aware rendering, follows `pacman-conf Color`, bypasses TTY gating, and explicitly respects `NO_COLOR` / `NODE_DISABLE_COLORS`.
 - **DI pattern** — See `DESIGN.md`. Classes with constructor injection, service contracts in `src/contracts/`, fakes in `test/fakes/`.
+
+## PR checklist
+
+Before opening any PR, ensure all docs are up to date:
+- `PLAN.md` — reflect completed/new phases and any design changes
+- `DESIGN.md` — update if architecture, contracts, or DI wiring changed
+- `README.md` — update usage, flags, or feature descriptions if visible behavior changed
+- `CLAUDE.md` — update key constraints, architecture summary, or implementation status if needed
+- `.github/copilot-instructions.md` (if present) — keep in sync with CLAUDE.md
 
 ## Implementation status
 

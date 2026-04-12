@@ -1,5 +1,4 @@
 import { parseArgs } from "node:util";
-import { fail } from "./core/format.ts";
 import { search } from "./commands/search.ts";
 import { syncInfo, queryInfo } from "./commands/info.ts";
 import { query, querySearch } from "./commands/query.ts";
@@ -72,6 +71,8 @@ export type Command =
   | { op: "passthrough"; args: string[] }
   | { op: "error"; message: string };
 
+export type DispatchCommand = Exclude<Command, { op: "help" } | { op: "error" }>;
+
 export function parseCommand(argv: string[]): Command {
   if (argv.length === 0) {
     return { op: "upgrade" };
@@ -137,52 +138,40 @@ export function parseCommand(argv: string[]): Command {
   return { op: "passthrough", args: argv };
 }
 
-export async function dispatch(cmd: Command, services?: Services): Promise<void> {
-  switch (cmd.op) {
-    case "help":
-      console.log(USAGE);
-      return;
-    case "error":
-      fail(cmd.message);
-      return;
-  }
-
-  if (!services) throw new Error("services required for this command");
-  const { alpm, aur, exec, ui } = services;
-
+export async function dispatch(cmd: DispatchCommand, services: Services): Promise<void> {
   switch (cmd.op) {
     case "upgrade":
-      await upgrade(alpm, aur, exec, ui);
+      await upgrade(services);
       return;
     case "default":
-      await defaultCommand(cmd.names, alpm, aur, exec, ui);
+      await defaultCommand(cmd.names, services);
       return;
     case "search":
-      await search(cmd.query, alpm, aur);
+      await search(cmd.query, services);
       return;
     case "syncInfo":
-      await syncInfo(cmd.package, alpm, aur);
+      await syncInfo(cmd.package, services);
       return;
     case "refreshDb":
-      await exec.sudoPacman(["-Sy"]);
+      await services.exec.sudoPacman(["-Sy"]);
       return;
     case "install":
-      await install(cmd.packages, alpm, aur, exec, ui);
+      await install(cmd.packages, services);
       return;
     case "query":
-      query(alpm);
+      query(services);
       return;
     case "querySearch":
-      querySearch(cmd.query, alpm);
+      querySearch(cmd.query, services);
       return;
     case "queryInfo":
-      await queryInfo(cmd.package, alpm);
+      await queryInfo(cmd.package, services);
       return;
     case "remove":
-      await exec.sudoPacman([cmd.flags, ...cmd.packages]);
+      await services.exec.sudoPacman([cmd.flags, ...cmd.packages]);
       return;
     case "passthrough":
-      await exec.sudoPacman(cmd.args);
+      await services.exec.sudoPacman(cmd.args);
       return;
   }
 }
