@@ -12,9 +12,10 @@ import {
 } from "../src/core/format.ts";
 import { makePkg } from "./fakes/fixtures.ts";
 
-function fakeInput(text: string) {
+function fakeInput(text: string, isTTY = false) {
   const input = new PassThrough();
   const output = new PassThrough();
+  Object.defineProperty(input, "isTTY", { value: isTTY });
   input.end(text + "\n");
   return { input, output };
 }
@@ -121,19 +122,41 @@ describe("confirm", () => {
     assert.strictEqual(result, true);
   });
 
+  it("returns true for 'yes'", async () => {
+    const result = await confirm("proceed?", fakeInput("yes"));
+    assert.strictEqual(result, true);
+  });
+
   it("returns false for 'n'", async () => {
     const result = await confirm("proceed?", fakeInput("n"));
     assert.strictEqual(result, false);
   });
 
-  it("returns false for empty input", async () => {
+  it("returns false for 'no'", async () => {
+    const result = await confirm("proceed?", fakeInput("no"));
+    assert.strictEqual(result, false);
+  });
+
+  it("returns true for empty input in interactive mode", async () => {
+    const result = await confirm("proceed?", fakeInput("", true));
+    assert.strictEqual(result, true);
+  });
+
+  it("returns false for empty input in non-interactive mode", async () => {
     const result = await confirm("proceed?", fakeInput(""));
     assert.strictEqual(result, false);
   });
 
-  it("returns false for 'yes'", async () => {
-    const result = await confirm("proceed?", fakeInput("yes"));
+  it("returns false for unrecognized input", async () => {
+    const result = await confirm("proceed?", fakeInput("maybe"));
     assert.strictEqual(result, false);
+  });
+
+  it("shows the default-yes prompt hint", async () => {
+    const io = fakeInput("y");
+    await confirm("proceed?", io);
+    const output = String(io.output.read() ?? "");
+    assert.ok(output.includes("(Y/n)"), "should show the default-yes hint");
   });
 });
 
