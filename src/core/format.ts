@@ -51,9 +51,12 @@ export async function prompt(message: string, opts?: PromptOpts): Promise<string
 }
 
 export async function confirm(message: string, opts?: PromptOpts): Promise<boolean> {
+  const input = opts?.input ?? process.stdin;
   const answer = await prompt(`→ ${message} (Y/n) `, opts);
   const normalized = answer.trim().toLowerCase();
-  return normalized === "" || normalized === "y" || normalized === "yes";
+  if (normalized === "y" || normalized === "yes") return true;
+  if (normalized === "") return "isTTY" in input && input.isTTY === true;
+  return false;
 }
 
 export async function pickNumber(

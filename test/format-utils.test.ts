@@ -12,9 +12,10 @@ import {
 } from "../src/core/format.ts";
 import { makePkg } from "./fakes/fixtures.ts";
 
-function fakeInput(text: string) {
+function fakeInput(text: string, isTTY = false) {
   const input = new PassThrough();
   const output = new PassThrough();
+  Object.defineProperty(input, "isTTY", { value: isTTY });
   input.end(text + "\n");
   return { input, output };
 }
@@ -136,9 +137,14 @@ describe("confirm", () => {
     assert.strictEqual(result, false);
   });
 
-  it("returns true for empty input", async () => {
-    const result = await confirm("proceed?", fakeInput(""));
+  it("returns true for empty input in interactive mode", async () => {
+    const result = await confirm("proceed?", fakeInput("", true));
     assert.strictEqual(result, true);
+  });
+
+  it("returns false for empty input in non-interactive mode", async () => {
+    const result = await confirm("proceed?", fakeInput(""));
+    assert.strictEqual(result, false);
   });
 
   it("returns false for unrecognized input", async () => {
