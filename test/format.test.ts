@@ -1,12 +1,32 @@
 import { stripVTControlCharacters } from "node:util";
-import { afterEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { OutputService } from "../src/services/OutputService.ts";
 import type { AurSearchResult } from "../src/core/types.ts";
+import { makePkg } from "./fakes/fixtures.ts";
 
-afterEach(() => {
+let previousNoColor: string | undefined;
+let previousNodeDisableColors: string | undefined;
+
+beforeEach(() => {
+  previousNoColor = process.env.NO_COLOR;
+  previousNodeDisableColors = process.env.NODE_DISABLE_COLORS;
   delete process.env.NO_COLOR;
   delete process.env.NODE_DISABLE_COLORS;
+});
+
+afterEach(() => {
+  if (previousNoColor === undefined) {
+    delete process.env.NO_COLOR;
+  } else {
+    process.env.NO_COLOR = previousNoColor;
+  }
+
+  if (previousNodeDisableColors === undefined) {
+    delete process.env.NODE_DISABLE_COLORS;
+  } else {
+    process.env.NODE_DISABLE_COLORS = previousNodeDisableColors;
+  }
 });
 
 const aurPkg: AurSearchResult = {
@@ -20,6 +40,34 @@ const aurPkg: AurSearchResult = {
   OutOfDate: null,
   Maintainer: "someone",
 };
+
+describe("formatRepoResult", () => {
+  const pkg = makePkg({ name: "firefox", version: "149.0-1", dbName: "extra" });
+
+  it("includes repo name and version", () => {
+    const result = new OutputService(false).formatRepoResult(pkg);
+    assert.ok(result.includes("extra/firefox"), "should contain repo and package name");
+    assert.ok(result.includes("149.0-1"), "should contain version");
+  });
+
+  it("includes description on a second line", () => {
+    const result = new OutputService(false).formatRepoResult(pkg);
+    assert.ok(result.includes("\n"), "should include a description line");
+    assert.ok(result.includes("Description of firefox"), "should contain description");
+  });
+
+  it("includes index when provided", () => {
+    const result = new OutputService(false).formatRepoResult(pkg, 5);
+    assert.ok(result.startsWith("5  "), "should prefix the result with the index");
+  });
+
+  it("omits the description line when missing", () => {
+    const result = new OutputService(false).formatRepoResult(
+      makePkg({ name: "foo", desc: undefined }),
+    );
+    assert.ok(!result.includes("\n"), "should not have a second line without a description");
+  });
+});
 
 describe("formatAurResult", () => {
   it("includes package name and version", () => {

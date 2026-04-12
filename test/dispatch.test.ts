@@ -4,26 +4,6 @@ import { dispatch } from "../src/cli.ts";
 import { createFakeServices } from "./fakes/services.ts";
 
 describe("dispatch", () => {
-  it("uses services.output for help", async () => {
-    const { services, output } = createFakeServices();
-    await dispatch({ op: "help" }, services);
-    const infoCall = output.calls.find((c) => c.fn === "info");
-    assert.ok(infoCall, "should print usage through output service");
-  });
-
-  it("uses services.output for error", async () => {
-    const original = process.exitCode;
-    try {
-      const { services, output } = createFakeServices();
-      await dispatch({ op: "error", message: "test" }, services);
-      const failCall = output.calls.find((c) => c.fn === "fail");
-      assert.ok(failCall, "should fail through output service");
-      assert.strictEqual(process.exitCode, 1);
-    } finally {
-      process.exitCode = original;
-    }
-  });
-
   it("routes remove to sudoPacman", async () => {
     const { services, exec } = createFakeServices();
     await dispatch({ op: "remove", flags: "-Rns", packages: ["foo"] }, services);

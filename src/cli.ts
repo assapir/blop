@@ -71,6 +71,8 @@ export type Command =
   | { op: "passthrough"; args: string[] }
   | { op: "error"; message: string };
 
+export type DispatchCommand = Exclude<Command, { op: "help" } | { op: "error" }>;
+
 export function parseCommand(argv: string[]): Command {
   if (argv.length === 0) {
     return { op: "upgrade" };
@@ -136,16 +138,7 @@ export function parseCommand(argv: string[]): Command {
   return { op: "passthrough", args: argv };
 }
 
-export async function dispatch(cmd: Command, services: Services): Promise<void> {
-  switch (cmd.op) {
-    case "help":
-      services.output.info(USAGE);
-      return;
-    case "error":
-      services.output.fail(cmd.message);
-      return;
-  }
-
+export async function dispatch(cmd: DispatchCommand, services: Services): Promise<void> {
   switch (cmd.op) {
     case "upgrade":
       await upgrade(services);
