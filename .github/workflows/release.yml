@@ -114,7 +114,7 @@ jobs:
           fi
 
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$MAIN_PUSH_TOKEN" | base64 | tr -d '\n')"
-          git commit -m "Update AUR metadata to $pkgver"
+          git commit -m "Update AUR metadata to $pkgver [skip ci]"
           git -c http.https://github.com/.extraheader="$auth_header" push origin HEAD:main
 
       - name: Sync package contents
