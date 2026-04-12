@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   aur:
@@ -52,6 +52,31 @@ jobs:
           chmod 600 "$ssh_dir/config" "$ssh_dir/known_hosts"
           ssh-keyscan -H aur.archlinux.org >> "$ssh_dir/known_hosts" 2>/dev/null
 
+      - name: Refresh checked-in AUR metadata
+        run: |
+          pkg_dir="$GITHUB_WORKSPACE/aur/naruto-git"
+          pkgver="r$(git rev-list --count HEAD -- . ':(exclude)aur/naruto-git/**').$(git log -1 --format=%h -- . ':(exclude)aur/naruto-git/**')"
+          sed -i "s/^pkgver=.*/pkgver=$pkgver/" "$pkg_dir/PKGBUILD"
+          printf 'PUBLISH_PKGVER=%s\n' "$pkgver" >> "$GITHUB_ENV"
+
+          build_user=aurbuilder
+          useradd -m "$build_user" 2>/dev/null || true
+          chown -R "$build_user:$build_user" "$pkg_dir"
+          runuser -u "$build_user" -- sh -lc "cd '$pkg_dir' && makepkg --printsrcinfo > .SRCINFO"
+          chown -R root:root "$pkg_dir"
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add aur/naruto-git/PKGBUILD aur/naruto-git/.SRCINFO
+
+          if git diff --cached --quiet; then
+            echo "AUR metadata already up to date in GitHub."
+            exit 0
+          fi
+
+          git commit -m "Update AUR metadata to $pkgver"
+          git push origin HEAD:main
+
       - name: Sync package contents
         run: |
           export GIT_SSH_COMMAND="ssh -F $HOME/.ssh/config -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes"
@@ -61,12 +86,6 @@ jobs:
           git checkout -B master
           find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp -r "$pkg_dir"/. .
-          build_user=aurbuilder
-          useradd -m "$build_user" 2>/dev/null || true
-          workdir=$(pwd)
-          chown -R "$build_user:$build_user" "$workdir"
-          runuser -u "$build_user" -- sh -lc "cd '$workdir' && makepkg --printsrcinfo > .SRCINFO"
-          chown -R root:root "$workdir"
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add --all
@@ -76,5 +95,5 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update to ${GITHUB_SHA::7}"
+          git commit -m "Update to ${PUBLISH_PKGVER:-${GITHUB_SHA::7}}"
           git push origin master
