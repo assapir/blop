@@ -12,7 +12,7 @@ Just type `naruto`. It does what makes sense.
 
 - **Does what makes sense** — `naruto <pkg>` checks if it's installed (offer to remove), in the repos (offer to install), in the AUR (offer to install), or none of the above (search and pick). One command, always the right action.
 - **Native libalpm** — queries the package database directly via [libalpm](https://github.com/assapir/libalpm) (napi-rs bindings), no shelling out to `pacman` for reads.
-- **Zero runtime dependencies** — besides Node.js itself. No Python, no Go, no Ruby.
+- **Minimal runtime deps** — besides Node.js itself, the only runtime dependency is `libalpm`. No Python, no Go, no Ruby.
 
 ## Smart defaults
 
