@@ -35,6 +35,7 @@ jobs:
 
           auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
           git init
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git remote add origin "$repo_url"
           git -c http.https://github.com/.extraheader="$auth_header" fetch origin "${GITHUB_REF}:refs/github/target-ref"
 
