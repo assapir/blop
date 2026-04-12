@@ -464,6 +464,48 @@ describe("defaultCommand", () => {
     assert.ok(pickCall, "should show picker");
   });
 
+  it("fallback search includes repo results", async () => {
+    alpm.addSync(makePkg({ name: "firefox", dbName: "extra" }));
+    alpm.addSync(makePkg({ name: "firefox-developer-edition", dbName: "extra" }));
+    aur.addPackage(makeAurPkg({ Name: "firefox-nightly" }));
+    ui.setPickAnswer(null); // just check picker is shown, don't install
+
+    await defaultCommand(["firef"], installDeps());
+
+    const pickCall = ui.calls.find((c) => c.fn === "pickNumber");
+    assert.ok(pickCall, "should show picker");
+    // picker range should include all 3 results (2 repo + 1 AUR)
+    assert.ok(String(pickCall.args[0]).includes("3"), "picker should offer all 3 results");
+  });
+
+  it("fallback search shows repo-only results when AUR has none", async () => {
+    alpm.addSync(makePkg({ name: "pacman", dbName: "core" }));
+    ui.setPickAnswer(null);
+
+    await defaultCommand(["pacma"], installDeps());
+
+    const pickCall = ui.calls.find((c) => c.fn === "pickNumber");
+    assert.ok(pickCall, "should show picker for repo-only results");
+  });
+
+  it("fallback search passes index to formatter so descriptions indent correctly", async () => {
+    alpm.addSync(makePkg({ name: "firefox", dbName: "extra", desc: "A web browser" }));
+    aur.addPackage(makeAurPkg({ Name: "firefox-nightly", Description: "Nightly build" }));
+    ui.setPickAnswer(null);
+
+    await defaultCommand(["firef"], installDeps());
+
+    const infoCalls = output.calls.filter((c) => c.fn === "info").map((c) => String(c.args[0]));
+    // With correct index passing: description line indented with 4 spaces
+    // Without (the bug): description indented with 3 spaces then number prepended
+    const repoLine = infoCalls.find((s) => s.includes("firefox") && s.includes("A web browser"));
+    const aurLine = infoCalls.find((s) => s.includes("firefox-nightly") && s.includes("Nightly build"));
+    assert.ok(repoLine, "repo result with description should be displayed");
+    assert.ok(aurLine, "AUR result with description should be displayed");
+    assert.ok(repoLine!.includes("\n    "), "repo description should be indented with 4 spaces (index passed)");
+    assert.ok(aurLine!.includes("\n    "), "AUR description should be indented with 4 spaces (index passed)");
+  });
+
   it("handles no search results", async () => {
     // No packages anywhere
     await defaultCommand(["nonexistent_xyz_99"], installDeps());
